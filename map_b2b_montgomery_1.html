@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carte B2B - Cibles Entreprises Montgomery</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+  #map { width: 100%; height: 100vh; }
+  .legend {
+    background: white; padding: 14px 18px; border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.25); line-height: 1.8;
+    max-height: 80vh; overflow-y: auto; font-size: 13px;
+  }
+  .legend h3 { margin-bottom: 8px; font-size: 15px; color: #1a1a2e; }
+  .legend-item { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 2px 0; }
+  .legend-item:hover { opacity: 0.7; }
+  .legend-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; border: 2px solid white; box-shadow: 0 0 3px rgba(0,0,0,0.3); }
+  .legend-count { color: #888; font-size: 11px; }
+  .title-bar {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1000;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: white; padding: 10px 28px; border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3); font-size: 16px; font-weight: 600;
+    letter-spacing: 0.5px; white-space: nowrap;
+  }
+  .custom-marker {
+    border-radius: 50%; border: 2.5px solid white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+</style>
+</head>
+<body>
+<div class="title-bar">📍 Cibles B2B — Périmètre Montgomery / Av. de Tervuren</div>
+<div id="map"></div>
+<script>
+const categories = [
+  { id: "consulting", name: "Conseil & Big Four", color: "#2563eb" },
+  { id: "eu", name: "Institutions EU", color: "#eab308" },
+  { id: "law", name: "Cabinets d'avocats", color: "#dc2626" },
+  { id: "finance", name: "Finance & Banques", color: "#16a34a" },
+  { id: "multinational", name: "Multinationales", color: "#7c3aed" },
+  { id: "tech", name: "Tech & Digital", color: "#ea580c" },
+  { id: "lobbying", name: "Lobbying & Affaires publiques", color: "#db2777" },
+  { id: "embassy", name: "Ambassades & Diplomatie", color: "#0d9488" },
+  { id: "pharma", name: "Pharma & Biotech", color: "#06b6d4" },
+  { id: "realestate", name: "Immobilier", color: "#92400e" },
+  { id: "pme", name: "PME & Coworking", color: "#6b7280" },
+  { id: "schools", name: "Écoles internationales", color: "#65a30d" },
+  { id: "medical", name: "Secteur médical", color: "#e11d48" },
+  { id: "thinktank", name: "Think tanks & Fédérations", color: "#854d0e" }
+];
+
+const companies = [
+  // Consulting
+  { cat: "consulting", name: "KPMG EU Office", addr: "Rue d'Idalie 9/13", lat: 50.8367, lng: 4.3713 },
+  { cat: "consulting", name: "The European Consulting Co.", addr: "Sint Michielswarande 13", lat: 50.8389, lng: 4.3987 },
+  { cat: "consulting", name: "Schuman Associates", addr: "Rue Archimède 5", lat: 50.8432, lng: 4.3841 },
+  // EU Institutions
+  { cat: "eu", name: "Conseil de l'UE", addr: "Rue de la Loi 175", lat: 50.8422, lng: 4.3823 },
+  { cat: "eu", name: "Commission Européenne (Berlaymont)", addr: "Rue de la Loi 200", lat: 50.8437, lng: 4.3826 },
+  { cat: "eu", name: "SEAE (EEAS)", addr: "Rdpt Robert Schuman 9", lat: 50.8425, lng: 4.3847 },
+  // Law Firms
+  { cat: "law", name: "Loyens & Loeff", addr: "Av. de Tervueren 2", lat: 50.8401, lng: 4.3978 },
+  { cat: "law", name: "Freshfields", addr: "Bastion Tower, Marsveldplein 5", lat: 50.8382, lng: 4.3630 },
+  { cat: "law", name: "Linklaters", addr: "Rue Brederode 13", lat: 50.8405, lng: 4.3606 },
+  { cat: "law", name: "Stibbe", addr: "Rue de Loxum 25", lat: 50.8465, lng: 4.3584 },
+  { cat: "law", name: "Cleary Gottlieb", addr: "Rue de la Loi 57", lat: 50.8444, lng: 4.3735 },
+  { cat: "law", name: "Fieldfisher", addr: "Bd Louis Schmidt 29", lat: 50.8270, lng: 4.3993 },
+  { cat: "law", name: "Herbert Smith Freehills", addr: "Rue de Loxum 25", lat: 50.8468, lng: 4.3588 },
+  { cat: "law", name: "Cabinet Bonhivers", addr: "Av. de Tervueren 273", lat: 50.8352, lng: 4.4152 },
+  // Finance
+  { cat: "finance", name: "BNP Paribas Fortis (Schuman)", addr: "Rdpt Robert Schuman 10", lat: 50.8428, lng: 4.3844 },
+  { cat: "finance", name: "BNP Paribas Fortis Private Banking", addr: "Av. de Tervueren 270", lat: 50.8353, lng: 4.4207 },
+  { cat: "finance", name: "Financial Center Montgomery", addr: "Av. de Tervueren 142", lat: 50.8381, lng: 4.4086 },
+  { cat: "finance", name: "Assurfina (Assurances)", addr: "Av. de Tervueren 333", lat: 50.8342, lng: 4.4215 },
+  { cat: "finance", name: "Fintro Woluwe-Saint-Pierre", addr: "Rue René Declercq 59", lat: 50.8359, lng: 4.4310 },
+  // Multinationals
+  { cat: "multinational", name: "Mitsui AgriScience International", addr: "Av. de Tervueren 270", lat: 50.8350, lng: 4.4205 },
+  { cat: "multinational", name: "Serco Europe", addr: "Chau. de Wavre 1945, Auderghem", lat: 50.8127, lng: 4.4357 },
+  { cat: "multinational", name: "IOGP (Oil & Gas Producers)", addr: "Av. de Tervueren 188A", lat: 50.8371, lng: 4.4114 },
+  // Tech
+  { cat: "tech", name: "NYN IT Consulting", addr: "Av. Jan Olieslagers 7", lat: 50.8392, lng: 4.4520 },
+  { cat: "tech", name: "MyNextCompany (Recrutement IT)", addr: "Tervurenlaan 412", lat: 50.8273, lng: 4.4456 },
+  // Lobbying
+  { cat: "lobbying", name: "Grayling", addr: "Rue Belliard 12", lat: 50.8426, lng: 4.3690 },
+  { cat: "lobbying", name: "logos Public Affairs", addr: "Av. des Arts 47", lat: 50.8423, lng: 4.3673 },
+  { cat: "lobbying", name: "Athenora Consulting", addr: "Av. de Cortenbergh 66", lat: 50.8441, lng: 4.3875 },
+  { cat: "lobbying", name: "Political Intelligence", addr: "Rue de la Loi 38", lat: 50.8453, lng: 4.3704 },
+  { cat: "lobbying", name: "Publyon EU", addr: "Rue du Commerce 31", lat: 50.8409, lng: 4.3681 },
+  // Embassies
+  { cat: "embassy", name: "Ambassade du Pérou", addr: "Av. de Tervueren 212", lat: 50.8366, lng: 4.4143 },
+  { cat: "embassy", name: "Ambassade du Nigeria", addr: "Av. de Tervueren 288", lat: 50.8351, lng: 4.4234 },
+  { cat: "embassy", name: "Ambassade d'Indonésie", addr: "Av. de Tervueren 294", lat: 50.8355, lng: 4.4260 },
+  { cat: "embassy", name: "Ambassade du Togo", addr: "Av. de Tervueren 264", lat: 50.8358, lng: 4.4175 },
+  { cat: "embassy", name: "Ambassade du Botswana", addr: "Av. de Tervueren 169", lat: 50.8369, lng: 4.4065 },
+  { cat: "embassy", name: "Ambassade d'Ouganda", addr: "Av. de Tervueren 317", lat: 50.8346, lng: 4.4191 },
+  { cat: "embassy", name: "Ambassade de Chine", addr: "Av. de Tervueren 443/445", lat: 50.8235, lng: 4.4455 },
+  { cat: "embassy", name: "Consulat d'Iran", addr: "Av. de Tervueren 415", lat: 50.8263, lng: 4.4449 },
+  { cat: "embassy", name: "Ambassade São Tomé e Príncipe", addr: "Av. de Tervueren 175", lat: 50.8365, lng: 4.4078 },
+  // Pharma
+  { cat: "pharma", name: "Pileje Benelux", addr: "Av. de Broqueville 12", lat: 50.8382, lng: 4.4100 },
+  { cat: "pharma", name: "Betaplus Pharma", addr: "Av. Hippocrate 10", lat: 50.8516, lng: 4.4533 },
+  { cat: "pharma", name: "AUSTRAL Biologicals", addr: "Av. de l'Armée 68", lat: 50.8354, lng: 4.4037 },
+  // Real Estate
+  { cat: "realestate", name: "Macnash Montgomery", addr: "Av. de Broqueville 1", lat: 50.8380, lng: 4.4087 },
+  { cat: "realestate", name: "Tomson Properties", addr: "Av. de l'Armée 41", lat: 50.8366, lng: 4.4039 },
+  { cat: "realestate", name: "ESPACE IMMO Brussels", addr: "Av. de Woluwe-St-Lambert 35", lat: 50.8398, lng: 4.4104 },
+  { cat: "realestate", name: "Maxime Real Estate", addr: "Parv. Sainte-Alix 37", lat: 50.8279, lng: 4.4625 },
+  // PME & Coworking
+  { cat: "pme", name: "The Nestwork Coworking", addr: "Av. de Broqueville 12", lat: 50.8384, lng: 4.4102 },
+  { cat: "pme", name: "TOPOS Coworking", addr: "Rue Abbé Cuypers 3", lat: 50.8382, lng: 4.3996 },
+  { cat: "pme", name: "Hive5 Mérode Coworking", addr: "Rue des Francs 79", lat: 50.8372, lng: 4.3997 },
+  { cat: "pme", name: "ID.Cité Architects", addr: "Av. de Tervueren 246", lat: 50.8360, lng: 4.4165 },
+  { cat: "pme", name: "Archi & Patri", addr: "Rue Père Eudore Devroye 11", lat: 50.8337, lng: 4.4067 },
+  { cat: "pme", name: "adn_ architectures", addr: "Rue François Gay 315", lat: 50.8374, lng: 4.4162 },
+  { cat: "pme", name: "My Square Montgomery", addr: "Av. de Tervueren 128", lat: 50.8381, lng: 4.4068 },
+  // Schools
+  { cat: "schools", name: "Montgomery International School", addr: "Rue du Duc 133", lat: 50.8387, lng: 4.4091 },
+  { cat: "schools", name: "École Européenne de Bruxelles II", addr: "Av. Oscar Jespers 75", lat: 50.8576, lng: 4.4426 },
+  { cat: "schools", name: "International Montessori Schools", addr: "Clos Hof ten Berg 22", lat: 50.8563, lng: 4.4433 },
+  // Medical
+  { cat: "medical", name: "Europe Hospitals St-Michel", addr: "Rue de Linthout 150", lat: 50.8432, lng: 4.4001 },
+  { cat: "medical", name: "Centre Médical Gribaumont", addr: "Av. de Broqueville 204", lat: 50.8423, lng: 4.4183 },
+  { cat: "medical", name: "Cliniques Saint-Luc UCLouvain", addr: "Av. Hippocrate 10", lat: 50.8526, lng: 4.4524 },
+  // Think Tanks
+  { cat: "thinktank", name: "ThinkYoung", addr: "Rue Charles Martel 8", lat: 50.8456, lng: 4.3799 },
+  { cat: "thinktank", name: "CER (Railways)", addr: "Av. des Arts 53", lat: 50.8416, lng: 4.3669 },
+  { cat: "thinktank", name: "FETSA", addr: "Rue Abbé Cuypers 3", lat: 50.8384, lng: 4.3998 }
+];
+
+// Your gym location
+const GYM = { lat: 50.8380, lng: 4.4100, name: "VOTRE SALLE DE FITNESS", addr: "Avenue de Tervuren, Montgomery" };
+
+const map = L.map('map').setView([50.838, 4.410], 14);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap © CARTO', maxZoom: 19
+}).addTo(map);
+
+// Gym marker (star)
+const gymIcon = L.divIcon({
+  className: '',
+  html: `<div style="width:32px;height:32px;background:#1a1a2e;border-radius:50%;border:3px solid #f59e0b;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 3px 10px rgba(0,0,0,0.5);">⭐</div>`,
+  iconSize: [32, 32], iconAnchor: [16, 16]
+});
+L.marker([GYM.lat, GYM.lng], { icon: gymIcon, zIndexOffset: 1000 })
+  .addTo(map)
+  .bindPopup(`<b style="font-size:14px;color:#1a1a2e;">🏋️ ${GYM.name}</b><br>${GYM.addr}`);
+
+// Category layers
+const layerGroups = {};
+categories.forEach(c => { layerGroups[c.id] = L.layerGroup().addTo(map); });
+
+companies.forEach(c => {
+  const cat = categories.find(x => x.id === c.cat);
+  const icon = L.divIcon({
+    className: 'custom-marker',
+    html: `<div class="custom-marker" style="width:16px;height:16px;background:${cat.color};"></div>`,
+    iconSize: [16, 16], iconAnchor: [8, 8]
+  });
+  L.marker([c.lat, c.lng], { icon })
+    .addTo(layerGroups[c.cat])
+    .bindPopup(`<b style="color:${cat.color}">${c.name}</b><br><span style="color:#666;font-size:12px">${c.addr}</span><br><span style="background:${cat.color};color:white;padding:2px 8px;border-radius:10px;font-size:11px;">${cat.name}</span>`);
+});
+
+// Legend
+const legend = L.control({ position: 'bottomright' });
+legend.onAdd = function () {
+  const div = L.DomUtil.create('div', 'legend');
+  div.innerHTML = '<h3>🎯 Catégories B2B</h3>';
+  categories.forEach(c => {
+    const count = companies.filter(x => x.cat === c.id).length;
+    div.innerHTML += `<div class="legend-item" onclick="toggleLayer('${c.id}', this)"><div class="legend-dot" style="background:${c.color}"></div><span>${c.name}</span><span class="legend-count">(${count})</span></div>`;
+  });
+  div.innerHTML += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;font-size:11px;color:#888;">Total: ${companies.length} cibles identifiées<br>⭐ = Votre salle de fitness</div>`;
+  return div;
+};
+legend.addTo(map);
+
+function toggleLayer(id, el) {
+  if (map.hasLayer(layerGroups[id])) {
+    map.removeLayer(layerGroups[id]);
+    el.style.opacity = '0.3';
+  } else {
+    map.addLayer(layerGroups[id]);
+    el.style.opacity = '1';
+  }
+}
+</script>
+</body>
+</html>
